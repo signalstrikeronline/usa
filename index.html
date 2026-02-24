@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignalStrike</title>
+    <style>
+        /* reset & full bleed */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0f15; /* fallback */
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            position: relative;
+        }
+
+        /* VIDEO BACKGROUND — fills entire page, static behind everything */
+        #bgVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        /* subtle dark overlay to keep modal readable */
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 6, 15, 0.65);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* MODAL overlay – same style, but now the only ui element */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 15, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .country-modal {
+            background: rgba(22, 32, 45, 0.95);
+            width: 90%;
+            max-width: 440px;
+            border-radius: 2.8rem;
+            padding: 2rem 1.8rem 1.8rem;
+            box-shadow: 0 35px 70px -10px #000000cc, 0 0 0 1px #3d506e inset;
+            color: white;
+            border: 1px solid #3c5270;
+            backdrop-filter: blur(4px);
+        }
+
+        .country-modal h2 {
+            font-weight: 300;
+            font-size: 2rem;
+            margin-bottom: 0.2rem;
+            letter-spacing: -0.5px;
+            color: #eaeef7;
+        }
+
+        .country-modal h2 small {
+            font-size: 0.9rem;
+            color: #859dbb;
+            font-weight: 200;
+            display: block;
+            margin-top: 0.2rem;
+        }
+
+        .country-list {
+            list-style: none;
+            margin: 2rem 0 1.8rem;
+            border-radius: 30px;
+            background: #101722cc;
+            padding: 0.6rem 0;
+            max-height: 340px;
+            overflow-y: auto;
+            border: 1px solid #293544;
+            backdrop-filter: blur(2px);
+        }
+
+        .country-list li {
+            padding: 1rem 1.8rem;
+            margin: 0 0.2rem;
+            border-radius: 40px;
+            font-size: 1.2rem;
+            font-weight: 300;
+            color: #cbdaf0;
+            cursor: pointer;
+            transition: 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            border-bottom: 1px solid #1f2b37;
+        }
+
+        .country-list li:last-child {
+            border-bottom: none;
+        }
+
+        .country-list li:hover {
+            background: #23344b;
+            color: white;
+            padding-left: 2.2rem;
+        }
+
+        .country-list li.selected-country {
+            background: #1e3b4f;
+            color: white;
+            font-weight: 400;
+            border-left: 4px solid #8bbfff;
+        }
+
+        .flag-placeholder {
+            font-size: 1.4rem;
+            filter: drop-shadow(0 2px 2px black);
+        }
+
+        .note {
+            color: #7b93b5;
+            font-size: 0.9rem;
+            text-align: center;
+            border-top: 1px dashed #2a3a4e;
+            padding-top: 1.2rem;
+        }
+
+        .close-btn {
+            background: #2e3f57;
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 100px;
+            font-size: 1rem;
+            width: 100%;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border: 1px solid #5e7da0;
+            transition: 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .close-btn:hover {
+            background: #3f5675;
+        }
+
+        /* scrollbar style */
+        .country-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .country-list::-webkit-scrollbar-track {
+            background: #0f1a24;
+        }
+
+        .country-list::-webkit-scrollbar-thumb {
+            background: #375272;
+            border-radius: 10px;
+        }
+
+        /* nothing else – only modal over video */
+    </style>
+</head>
+<body>
+    <!-- VIDEO BACKGROUND: signal.mp4, static, loops, muted -->
+    <video id="bgVideo" autoplay muted loop playsinline>
+        <source src="signal.mp4" type="video/mp4">
+        <!-- fallback if video not supported -->
+    </video>
+    <!-- dark overlay so modal stands out -->
+   
+
+    <!-- MODAL overlay (hidden by default, shown after load) -->
+    <div id="modalOverlay1" class="modal-overlay hidden">
+        <div class="country-modal">
+            <h2>🇿🇦 where are you from? <small>select your country</small></h2>
+
+            <!-- country list: South Africa first, then others -->
+            <ul class="country-list" id="countryList">
+                <!-- South Africa first -->
+                <li data-country="South Africa" data-domain="co.za" class="selected-country">
+                    <span class="flag-placeholder">🇿🇦</span> South Africa
+                </li>
+                <!-- USA -->
+                <li data-country="USA" data-domain="com">
+                    <span class="flag-placeholder">🇺🇸</span> USA
+                </li>
+                <!-- Argentina -->
+                <li data-country="Argentina" data-domain="com.ar">
+                    <span class="flag-placeholder">🇦🇷</span> Argentina
+                </li>
+                <!-- Germany -->
+                <li data-country="Germany" data-domain="de">
+                    <span class="flag-placeholder">🇩🇪</span> Germany
+                </li>
+                <!-- France -->
+                <li data-country="France" data-domain="fr">
+                    <span class="flag-placeholder">🇫🇷</span> France
+                </li>
+                <!-- EU -->
+                <li data-country="EU" data-domain="eu">
+                    <span class="flag-placeholder">🇪🇺</span> EU
+                </li>
+                <!-- Brazil -->
+                <li data-country="Brazil" data-domain="com.br">
+                    <span class="flag-placeholder">🇧🇷</span> Brazil
+                </li>
+                <!-- Canada -->
+                <li data-country="Canada" data-domain="ca">
+                    <span class="flag-placeholder">🇨🇦</span> Canada
+                </li>
+            </ul>
+
+            <div class="note">
+                🌍 you'll be redirected to your regional site
+            </div>
+            <button class="close-btn" id="closeModalBtn">got it, continue</button>
+        </div>
+    </div>
+
+    <!-- tiny script: show modal, handle selection & redirect (kept exactly as before) -->
+    <script>
+        (function() {
+            // ----- show modal on page load -----
+            const modal = document.getElementById('modalOverlay');
+            const countryItems = document.querySelectorAll('#countryList li');
+            const closeBtn = document.getElementById('closeModalBtn');
+
+            // Helper to hide modal
+            function hideModal() {
+                modal.classList.add('hidden');
+            }
+
+            // Redirect to subdomain based on selected country
+            function redirectToSubdomain(countryData) {
+                const country = countryData.country;
+                const domain = countryData.domain;
+                
+                // Get current subdomain (if any)
+                const hostname = window.location.hostname;
+                const parts = hostname.split('.');
+                
+                // Different logic based on environment
+                if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                    // Local development - just show alert for demo
+                    alert(`Redirecting to: ${country}.domain.${domain} (simulated)`);
+                    console.log(`Would redirect to: ${country.toLowerCase().replace(/\s+/g, '')}.domain.${domain}`);
+                    hideModal();
+                } else {
+                    // Production - construct subdomain URL
+                    const subdomain = country.toLowerCase().replace(/\s+/g, '');
+                    let newUrl;
+                    
+                    // Handle different domain structures
+                    if (parts.length >= 2) {
+                        // e.g., example.com or subdomain.example.com
+                        const mainDomain = parts.slice(-2).join('.');
+                        newUrl = `https://${subdomain}.${mainDomain}`;
+                    } else {
+                        // Fallback
+                        newUrl = `https://${subdomain}.domain.${domain}`;
+                    }
+                    
+                    // Redirect
+                    window.location.href = newUrl;
+                }
+            }
+
+            // When any country clicked: mark as selected, then redirect
+            function onCountryClick(e) {
+                const li = e.currentTarget;
+                const country = li.getAttribute('data-country');
+                const domain = li.getAttribute('data-domain');
+                
+                // remove previous selected class from all
+                countryItems.forEach(item => item.classList.remove('selected-country'));
+                li.classList.add('selected-country');
+
+                // Redirect with slight delay (feels sleepy)
+                setTimeout(() => {
+                    redirectToSubdomain({ country, domain });
+                }, 300);
+            }
+
+            // Attach click to every country line
+            countryItems.forEach(item => {
+                item.addEventListener('click', onCountryClick);
+            });
+
+            // Close modal with button – opens index.html (simulates "continue")
+            closeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                // Since we're on a static page with no aggregator, just hide modal and show a simple message
+                // or we could redirect to index.html – but to keep the static vibe, hide and show nothing.
+                // we'll follow the original: redirect to index.html (but index.html doesn't exist here, so maybe hide)
+                // better: hide modal and leave video – user can still select country if needed.
+                modal.classList.add('hidden');
+                // optional small feedback
+                console.log('modal closed, video continues');
+            });
+
+            // wait for everything to load, then remove hidden class – show modal
+            window.addEventListener('load', function() {
+                // tiny delay to make it feel like a popup after render
+                setTimeout(() => {
+                    modal.classList.remove('hidden');
+                }, 30);
+            });
+
+            // extra: if someone clicks on the backdrop (modal-overlay) close/hide?
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {   // click on overlay background
+                    // original: window.location.href = 'index.html';
+                    // but we just hide modal to keep video
+                    modal.classList.add('hidden');
+                }
+            });
+        })();
+    </script>
+    <script>
+        // Redirect to connect.html after 5 seconds
+        setTimeout(function() {
+            window.location.href = 'connect.html';
+        }, 5000); // 5000 ms = 5 seconds
+    </script>
+</body>
+</html>
